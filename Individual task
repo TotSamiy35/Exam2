@@ -1,0 +1,24 @@
+from pymed import PubMed
+import pandas as pd
+
+
+pubmed = PubMed()
+genes_filename = input('Введите путь до таблицы: ')
+
+
+def get_valuable_groups(table):
+    # Нужно доделать, пока не очень понятно как
+    # Пока что возвращается одна группа из одного гена,
+    # который в таблице на первой строке
+    return [[table['ID'][0]]]
+
+
+groups = get_valuable_groups(pd.read_csv(genes_filename))
+for group in groups:
+    keywords = set()
+    query = ' AND '.join([f'{gene}[Title/Abstract]' for gene in group])
+    articles = pubmed.query(query)
+    for article in articles:
+        keywords.update(set(article.toDict()['keywords']))
+    print(f'Для группы генов с ID {", ".join(group)} найдены следующие ключевые слова:\n')
+    print(*[keyword.strip() for keyword in keywords], sep='\n')
