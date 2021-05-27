@@ -4,25 +4,61 @@
 # и собирает сет ключевых слов для каждой группы генов.
 from pymed import PubMed
 import pandas as pd
-
+import unittest
 
 pubmed = PubMed()
 genes_filename = input('Введите путь до таблицы: ')
 
 
-def get_valuable_groups(table):
-    # Нужно доделать, пока не очень понятно как
-    # Пока что возвращается одна группа из одного гена,
-    # который в таблице на первой строке
-    return [[table['ID'][0]]]
+
+def get_valuable_groups(table,maxExp,direction):
+  
+  avg = 0 #средняя экспрессия
+  for record in table:#идем по таблице
+    avg = avg+record['p-val']
+  avg = avg/len(table) #находим среднюю экспрессию
+
+  result = []#массив групп удовлетворяющих условию
+  for record in table:
+    #Если дельта разности нашего элемента  не выходит за рамки мак дельты
+    #И
+    #направление совпадает с искомым направлением(-1*-0.12 > 0, 1*1 = 1)
+    if (abs(record['p-val'])-avg<=maxExp) and (direction*record['log fold change'] > 0):
+      #если удовлетворяет условию, то добавим в массив групп
+      result.append(record)
+  #функция возвращает массив групп
+  return result
 
 
-groups = get_valuable_groups(pd.read_csv(genes_filename))
-for group in groups:
-    keywords = set()
-    query = ' AND '.join([f'{gene}[Title/Abstract]' for gene in group])
-    articles = pubmed.query(query)
-    for article in articles:
-        keywords.update(set(article.toDict()['keywords']))
-    print(f'Для группы генов с ID {", ".join(group)} найдены следующие ключевые слова:\n')
-    print(*[keyword.strip() for keyword in keywords], sep='\n')
+if __name__ == '__main__':
+    unittest.main()
+
+  print("Введите максимальное изменение экспрессии, не считающееся значимым")
+  maxExp = float(input())#макс дельта экспрессии
+
+  print("Введите искомое направление(-1/1)")
+  direction = int(input())#искомое направление изменения экспрессии
+
+  groups = get_valuable_groups(pd.read_csv(genes_filename), maxExp, direction)
+
+
+
+  for group in groups:
+        keywords = set()
+        query = ' AND '.join([f'{gene}[Title/Abstract]' for gene in group])
+        articles = pubmed.query(query)
+        for article in articles:
+            keywords.update(set(article.toDict()['keywords']))
+        print(f'Для группы генов с ID {", ".join(group)} найдены следующие ключевые слова:\n')
+        print(*[keyword.strip() for keyword in keywords], sep='\n')
+        
+ class test(unittest.TestCase):
+
+  def test_get_valuable_groups_length(self):
+    #проверка - должно быть 2 элемента
+    groups = get_valuable_groups(pd.read_csv('test1'),10**-70,1)#погрешность 1/10^70
+    self.assertTrue(len(groups)==2) # пройдет, если длина отсортированных получилась = 2
+  def test_get_valuable_groups_contains(self):
+    #проверка - ID первого эл-та = 0, ID второго = 2
+    groups = get_valuable_groups(pd.read_csv('test1'),10**-70,1)#погрешность 1/10^70
+    self.assertTrue(groups['ID'][0]==0 and groups['ID'][1]==2)#пройдет, если ID первого эл-та = 0, ID второго = 2
